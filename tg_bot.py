@@ -18,12 +18,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 load_dotenv()
-tg_quiz_bot_token = os.getenv('TG_QUIZ_BOT_TOKEN')
-db = redis.Redis(
+TG_QUIZ_BOT_TOKEN = os.getenv('TG_QUIZ_BOT_TOKEN')
+DB = redis.Redis(
     host=os.getenv('REDIS_HOST'),
     port=(os.getenv('REDIS_PORT')),
     db=0,
-    decode_responses=True
+    decode_responses=True,
+    password=os.getenv('REDIS_PASSWORD')
 )
 
 
@@ -52,17 +53,28 @@ def send_question(bot, update, question):
     update.message.reply_text(question)
 
 
+def check_user_answer(bot, update, user_id):
+    if update.message.text == DB.get(user_id):
+        print(DB.get(user_id))
+        update.message.reply_text('Правильно! Поздравляю! Для следующего вопроса нажми "Новый вопрос"')
+    else:
+        print(DB.get(user_id))
+        update.message.reply_text('Неправльно... Попробуете еще раз?')
+
+
 def check_user_input(bot, update):
+    user_id = update.message.from_user['id']
     if update.message.text == 'Новый вопрос':
         question_card = get_question_card()
         question = question_card['question']
-        user_id = update.message.from_user['id']
-        db.set(user_id, question_card['answer'])
+        DB.set(user_id, question_card['answer'])
         send_question(bot, update, question)
     if update.message.text == 'Сдаться':
-        user_id = update.message.from_user['id']
-        answer = db.get(user_id)
+        answer = DB.get(user_id)
         send_question(bot, update, answer)
+    if not update.message.text.startswith('Вопрос'):
+        check_user_answer(bot, update, user_id)
+
 
 
 def error(bot, update, error):
@@ -70,7 +82,7 @@ def error(bot, update, error):
 
 
 def main():
-    updater = Updater(tg_quiz_bot_token)
+    updater = Updater(TG_QUIZ_BOT_TOKEN)
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start))
