@@ -1,33 +1,57 @@
-from itertools import zip_longest
+import os
+from random import choice
+
+from dotenv import load_dotenv
+
+load_dotenv()
+BASE_DIR = os.getenv('BASE_DIR')
 
 
-def chunk(lst):
-    i_ = iter(lst)
-    return list(zip_longest(i_, i_))
+def get_rnd_quiz_file():
+    file_name = choice(os.listdir(BASE_DIR))
+    file = os.path.join(BASE_DIR, file_name)
+
+    return file
 
 
-def create_quiz(file):
+def create_quiz():
+    file = get_rnd_quiz_file()
+
     with open(file, 'r', encoding='KOI8-R') as f:
         text = f.read()
 
-    sep_text = [part for part in text.split('\n\n')]
 
-    answers_and_questions = list(filter(lambda elem: 'Вопрос' in elem or 'Ответ' in elem, sep_text))
-    quiz_desc = [
-        {
-            'question': pair[0].split('\n', 1)[1],
-            'answer': pair[1].split('\n', 1)[1]
-        }
-        for pair in chunk(answers_and_questions)
-    ]
+    text_parts = text.split('\n\n')
 
-    return quiz_desc
+    questions = []
+    answers = []
 
+    for part in text_parts:
+        if 'Вопрос' in part:
+            questions.append(part)
+        elif 'Ответ' in part:
+            answers.append(part)
 
-def main():
-    file = 'temp/1vs1200.txt'
-    quiz = create_quiz(file)
+    clear_questions = [' '.join(question.split(':')[1:]).strip() for question in questions]
 
+    clear_answers = []
+    for answer in answers:
+        splited_answer = answer.split('\n')[1]
+        if '.' in splited_answer:
+            sanitize_answer = splited_answer.split('.')[0].strip()
+            if '(' in sanitize_answer:
+                sanitize_answer = sanitize_answer.split('(')[0].strip()
+            clear_answers.append(sanitize_answer)
+        elif '(' in splited_answer:
+            sanitize_answer = splited_answer.split('(')[0].strip()
+            clear_answers.append(sanitize_answer)
+        else:
+            clear_answers.append(sanitize_answer)
+
+    quiz = dict(zip(clear_questions, clear_answers))
+
+    return quiz
 
 if __name__ == '__main__':
-    main()
+    quiz = create_quiz()
+    print(quiz)

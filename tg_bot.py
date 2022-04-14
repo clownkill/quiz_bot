@@ -29,8 +29,7 @@ DB = redis.Redis(
 
 
 def get_question_card():
-    quiz_file = 'temp/1vs1200.txt'
-    quiz = create_quiz(quiz_file)
+    quiz = create_quiz()
     question_card = random.sample(quiz, 1)[0]
     # question = question_card['question']
     # answer = question_card['answer']
