@@ -2,6 +2,7 @@ import logging
 import os
 import random
 
+import redis
 import telegram
 from dotenv import load_dotenv
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
@@ -16,15 +17,24 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+load_dotenv()
+tg_quiz_bot_token = os.getenv('TG_QUIZ_BOT_TOKEN')
+db = redis.Redis(
+    host=os.getenv('REDIS_HOST'),
+    port=(os.getenv('REDIS_PORT')),
+    db=0,
+    decode_responses=True
+)
 
-def get_question_answer():
+
+def get_question_card():
     quiz_file = 'temp/1vs1200.txt'
     quiz = create_quiz(quiz_file)
-    question_and_answer = random.sample(quiz, 1)[0]
-    question = question_and_answer['question']
-    answer = question_and_answer['answer']
+    question_card = random.sample(quiz, 1)[0]
+    # question = question_card['question']
+    # answer = question_card['answer']
 
-    return question, answer
+    return question_card
 
 
 def start(bot, update):
@@ -44,8 +54,15 @@ def send_question(bot, update, question):
 
 def check_user_input(bot, update):
     if update.message.text == 'Новый вопрос':
-        question, answer = get_question_answer()
+        question_card = get_question_card()
+        question = question_card['question']
+        user_id = update.message.from_user['id']
+        db.set(user_id, question_card['answer'])
         send_question(bot, update, question)
+    if update.message.text == 'Сдаться':
+        user_id = update.message.from_user['id']
+        answer = db.get(user_id)
+        send_question(bot, update, answer)
 
 
 def error(bot, update, error):
@@ -53,9 +70,6 @@ def error(bot, update, error):
 
 
 def main():
-    load_dotenv()
-    tg_quiz_bot_token = os.getenv('TG_QUIZ_BOT_TOKEN')
-
     updater = Updater(tg_quiz_bot_token)
     dp = updater.dispatcher
 
