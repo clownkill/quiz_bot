@@ -1,9 +1,12 @@
 import logging
 import os
+import random
 
 import telegram
 from dotenv import load_dotenv
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+
+from create_quiz import create_quiz
 
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -23,9 +26,16 @@ def start(bot, update):
     )
 
 
-
 def echo(bot, update):
     update.message.reply_text(update.message.text)
+
+
+def send_question(bot, update):
+    if update.message.text == 'Новый вопрос':
+        quiz_file = 'temp/1vs1200.txt'
+        questions_and_answers = create_quiz(quiz_file)
+        rand_question = random.sample(questions_and_answers, 1)[0]['question']
+        update.message.reply_text(rand_question)
 
 
 def error(bot, update, error):
@@ -37,11 +47,12 @@ def main():
     tg_quiz_bot_token = os.getenv('TG_QUIZ_BOT_TOKEN')
 
     updater = Updater(tg_quiz_bot_token)
-
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.text, echo))
+    # dp.add_handler(CommandHandler('Новый вопрос', send_question))
+    # dp.add_handler(MessageHandler(Filters.text, echo))
+    dp.add_handler(MessageHandler(Filters.text, send_question))
 
     dp.add_error_handler(error)
 
