@@ -26,16 +26,16 @@ def start(bot, update):
     )
 
 
-def echo(bot, update):
-    update.message.reply_text(update.message.text)
-
-
 def send_question(bot, update):
+    quiz_file = 'temp/1vs1200.txt'
+    questions_and_answers = create_quiz(quiz_file)
+    rand_question = random.sample(questions_and_answers, 1)[0]['question']
+    update.message.reply_text(rand_question)
+
+
+def check_user_input(bot, update):
     if update.message.text == 'Новый вопрос':
-        quiz_file = 'temp/1vs1200.txt'
-        questions_and_answers = create_quiz(quiz_file)
-        rand_question = random.sample(questions_and_answers, 1)[0]['question']
-        update.message.reply_text(rand_question)
+        send_question(bot, update)
 
 
 def error(bot, update, error):
@@ -50,9 +50,7 @@ def main():
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start))
-    # dp.add_handler(CommandHandler('Новый вопрос', send_question))
-    # dp.add_handler(MessageHandler(Filters.text, echo))
-    dp.add_handler(MessageHandler(Filters.text, send_question))
+    dp.add_handler(MessageHandler(Filters.text, check_user_input))
 
     dp.add_error_handler(error)
 
