@@ -9,10 +9,22 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from create_quiz import create_quiz
 
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 
 logger = logging.getLogger(__name__)
+
+
+def get_question_answer():
+    quiz_file = 'temp/1vs1200.txt'
+    quiz = create_quiz(quiz_file)
+    question_and_answer = random.sample(quiz, 1)[0]
+    question = question_and_answer['question']
+    answer = question_and_answer['answer']
+
+    return question, answer
 
 
 def start(bot, update):
@@ -26,16 +38,14 @@ def start(bot, update):
     )
 
 
-def send_question(bot, update):
-    quiz_file = 'temp/1vs1200.txt'
-    questions_and_answers = create_quiz(quiz_file)
-    rand_question = random.sample(questions_and_answers, 1)[0]['question']
-    update.message.reply_text(rand_question)
+def send_question(bot, update, question):
+    update.message.reply_text(question)
 
 
 def check_user_input(bot, update):
     if update.message.text == 'Новый вопрос':
-        send_question(bot, update)
+        question, answer = get_question_answer()
+        send_question(bot, update, question)
 
 
 def error(bot, update, error):
