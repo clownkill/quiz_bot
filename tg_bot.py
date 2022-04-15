@@ -1,11 +1,13 @@
 import logging
 import os
+from enum import Enum
+from functools import partial
 from random import choice
 
 import redis
-import telegram
 from dotenv import load_dotenv
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
 
 from create_quiz import create_quiz
 
@@ -17,71 +19,115 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-load_dotenv()
-TG_QUIZ_BOT_TOKEN = os.getenv('TG_QUIZ_BOT_TOKEN')
-DB = redis.Redis(
-    host=os.getenv('REDIS_HOST'),
-    port=(os.getenv('REDIS_PORT')),
-    db=0,
-    decode_responses=True,
-    # password=os.getenv('REDIS_PASSWORD')
-)
+BotStates = Enum('BotStates', 'ANSWER QUESTION')
 
+REPLY_KEYBOARD = [['Новый вопрос', 'Сдаться'], ['Мой счет']]
+REPLY_MARKUP = ReplyKeyboardMarkup(REPLY_KEYBOARD, one_time_keyboard=True)
 
-def start(bot, update):
-    custom_keyboard = [['Новый вопрос', 'Сдаться'],
-                       ['Мой счет']]
-    reply_markup = telegram.ReplyKeyboardMarkup(custom_keyboard)
-
+def start(update, context):
     update.message.reply_text(
         text='Привет! Я бот для викторин!',
-        reply_markup=reply_markup
+        reply_markup=REPLY_MARKUP
     )
 
-
-def send_question(bot, update, question):
-    update.message.reply_text(question)
+    return BotStates.QUESTION.value
 
 
-def check_user_answer(bot, update, user_id):
-    question = DB.get(user_id)
-    answer = DB.get(question)
-    user_answer = update.message.text
-    if user_answer.lower() == answer.lower():
-        update.message.reply_text('Правильно! Поздравляю! Для следующего вопроса нажми "Новый вопрос"')
+def handle_new_question_request(update, context, db, quiz):
+    user = update.message.from_user['id']
+    question = choice(list(quiz.keys()))
+    db.set(user, question)
+
+    update.message.reply_text(
+        db.get(user),
+        reply_markup=REPLY_MARKUP
+    )
+
+    return BotStates.ANSWER.value
+
+
+def handle_solutions_attempt(update, context, db, quiz):
+    user = update.message.from_user['id']
+    answer = update.message.text
+    question = db.get(user)
+    correct_answer = quiz[question]
+
+    if answer.lower() == correct_answer.lower():
+        update.message.reply_text(
+            'Правильно! Поздравляю! Для следующего вопроса нажми "Новый вопрос".',
+            reply_markup=REPLY_MARKUP
+        )
+        return BotStates.QUESTION.value
     else:
-        update.message.reply_text('Неправльно... Попробуете еще раз?')
+        update.message.reply_text(
+            'Неправильно...Попробуй еще раз',
+            reply_markup=REPLY_MARKUP
+        )
+        return BotStates.ANSWER.value
 
 
-def check_user_input(bot, update):
-    user_id = update.message.from_user['id']
-    quiz = create_quiz()
-    questions = list(quiz.keys())
-    if update.message.text == 'Новый вопрос':
-        question = choice(questions)
-        answer = quiz[question]
-        print(answer)
-        DB.set(user_id, question)
-        DB.set(question, answer)
-        send_question(bot, update, question)
-    if update.message.text == 'Сдаться':
-        question = DB.get(user_id)
-        answer = DB.get(question)
-        send_question(bot, update, answer)
-    else:
-        check_user_answer(bot, update, user_id)
+def handle_give_up(update, context, db, quiz):
+    user = update.message.from_user['id']
+    question = db.get(user)
+    answer = quiz[question]
+
+    update.message.reply_text(
+        f'''Правильный ответ:
+        {answer}
+        ''',
+        reply_markup=REPLY_MARKUP
+    )
+
+    handle_new_question_request(update, context, db, quiz)
 
 
-def error(bot, update, error):
+def done(update, context):
+    user_data = context.user_data
+
+    update.message.reply_text(
+        'Ждем Вас снова в нашей викторине!',
+        reply_markup=ReplyKeyboardRemove()
+    )
+
+    user_data.clear()
+    return ConversationHandler.END
+
+
+def error(update, error):
     logger.warning('Update "%s" caused error "%s"', update, error)
 
 
 def main():
+    load_dotenv()
+    TG_QUIZ_BOT_TOKEN = os.getenv('TG_QUIZ_BOT_TOKEN')
+
+    db = redis.Redis(
+        host=os.getenv('REDIS_HOST'),
+        port=(os.getenv('REDIS_PORT')),
+        decode_responses=True,
+        password=os.getenv('REDIS_PASSWORD')
+    )
+
+    quiz = create_quiz()
+
     updater = Updater(TG_QUIZ_BOT_TOKEN)
     dp = updater.dispatcher
 
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.text, check_user_input))
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('start', start)],
+        states={
+            BotStates.QUESTION.value: [
+                MessageHandler(Filters.regex('^Новый вопрос$'), partial(handle_new_question_request, db=db, quiz=quiz))
+            ],
+            BotStates.ANSWER.value: [
+                MessageHandler(Filters.regex('^Сдаться$'), partial(handle_give_up, db=db, quiz=quiz)),
+                MessageHandler(Filters.text, partial(handle_solutions_attempt, db=db, quiz=quiz)),
+            ],
+        },
+        fallbacks=[MessageHandler(Filters.regex('^Done$'), done)],
+    )
+
+    dp.add_handler(conv_handler)
 
     dp.add_error_handler(error)
 
