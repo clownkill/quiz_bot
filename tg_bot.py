@@ -1,6 +1,6 @@
 import logging
 import os
-import random
+from random import choice
 
 import redis
 import telegram
@@ -24,17 +24,8 @@ DB = redis.Redis(
     port=(os.getenv('REDIS_PORT')),
     db=0,
     decode_responses=True,
-    password=os.getenv('REDIS_PASSWORD')
+    # password=os.getenv('REDIS_PASSWORD')
 )
-
-
-def get_question_card():
-    quiz = create_quiz()
-    question_card = random.sample(quiz, 1)[0]
-    # question = question_card['question']
-    # answer = question_card['answer']
-
-    return question_card
 
 
 def start(bot, update):
@@ -53,27 +44,32 @@ def send_question(bot, update, question):
 
 
 def check_user_answer(bot, update, user_id):
-    if update.message.text == DB.get(user_id):
-        print(DB.get(user_id))
+    question = DB.get(user_id)
+    answer = DB.get(question)
+    user_answer = update.message.text
+    if user_answer.lower() == answer.lower():
         update.message.reply_text('Правильно! Поздравляю! Для следующего вопроса нажми "Новый вопрос"')
     else:
-        print(DB.get(user_id))
         update.message.reply_text('Неправльно... Попробуете еще раз?')
 
 
 def check_user_input(bot, update):
     user_id = update.message.from_user['id']
+    quiz = create_quiz()
+    questions = list(quiz.keys())
     if update.message.text == 'Новый вопрос':
-        question_card = get_question_card()
-        question = question_card['question']
-        DB.set(user_id, question_card['answer'])
+        question = choice(questions)
+        answer = quiz[question]
+        print(answer)
+        DB.set(user_id, question)
+        DB.set(question, answer)
         send_question(bot, update, question)
     if update.message.text == 'Сдаться':
-        answer = DB.get(user_id)
+        question = DB.get(user_id)
+        answer = DB.get(question)
         send_question(bot, update, answer)
-    if not update.message.text.startswith('Вопрос'):
+    else:
         check_user_answer(bot, update, user_id)
-
 
 
 def error(bot, update, error):

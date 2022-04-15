@@ -46,7 +46,7 @@ def create_quiz():
             sanitize_answer = splited_answer.split('(')[0].strip()
             clear_answers.append(sanitize_answer)
         else:
-            clear_answers.append(sanitize_answer)
+            clear_answers.append(splited_answer)
 
     quiz = dict(zip(clear_questions, clear_answers))
 
