@@ -65,6 +65,7 @@ def check_solutions_attempt(event, vk_api, keyboard, db):
 def main():
     load_dotenv()
     vk_quiz_bot_token = os.getenv('VK_QUIZ_BOT_TOKEN')
+    quiz_dir = os.getenv('QUIZ_DIR')
 
     db = redis.Redis(
         host=os.getenv('REDIS_HOST'),
@@ -73,7 +74,7 @@ def main():
         password=os.getenv('REDIS_PASSWORD')
     )
 
-    quiz = create_quiz()
+    quiz = create_quiz(quiz_dir)
 
     vk_session = vk.VkApi(token=vk_quiz_bot_token)
     vk_api = vk_session.get_api()

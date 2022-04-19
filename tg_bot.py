@@ -99,7 +99,8 @@ def error(update, error):
 
 def main():
     load_dotenv()
-    TG_QUIZ_BOT_TOKEN = os.getenv('TG_QUIZ_BOT_TOKEN')
+    tg_quiz_bot_token = os.getenv('TG_QUIZ_BOT_TOKEN')
+    quiz_dir = os.getenv('QUIZ_DIR')
 
     db = redis.Redis(
         host=os.getenv('REDIS_HOST'),
@@ -108,9 +109,9 @@ def main():
         password=os.getenv('REDIS_PASSWORD')
     )
 
-    quiz = create_quiz()
+    quiz = create_quiz(quiz_dir)
 
-    updater = Updater(TG_QUIZ_BOT_TOKEN)
+    updater = Updater(tg_quiz_bot_token)
     dp = updater.dispatcher
 
     conv_handler = ConversationHandler(
