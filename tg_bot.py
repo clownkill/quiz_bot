@@ -37,10 +37,10 @@ def handle_new_question_request(update, context, db, quiz):
     user = update.message.from_user['id']
     question = choice(list(quiz.keys()))
     answer = quiz[question]
+    print(answer)
     db.set(user, answer)
-
     update.message.reply_text(
-        db.get(user),
+        question,
         reply_markup=REPLY_MARKUP
     )
 
@@ -121,7 +121,7 @@ def main():
             ],
             BotStates.ANSWER.value: [
                 MessageHandler(Filters.regex('^Сдаться$'), partial(handle_give_up, db=db, quiz=quiz)),
-                MessageHandler(Filters.text, partial(handle_solutions_attempt, db=db, quiz=quiz)),
+                MessageHandler(Filters.text, partial(handle_solutions_attempt, db=db)),
             ],
         },
         fallbacks=[MessageHandler(Filters.regex('^Done$'), done)],
