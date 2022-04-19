@@ -37,7 +37,6 @@ def handle_new_question_request(update, context, db, quiz):
     user = update.message.from_user['id']
     question = choice(list(quiz.keys()))
     answer = quiz[question]
-    print(answer)
     db.set(user, answer)
     update.message.reply_text(
         question,
