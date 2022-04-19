@@ -15,8 +15,7 @@ def send_new_question(event, vk_api, keyboard, db, quiz):
     user_id = event.user_id
     question = choice(list(quiz.keys()))
     answer = quiz[question]
-    db.set(user_id, question)
-    db.set(question, answer)
+    db.set(user_id, answer)
 
     vk_api.messages.send(
         user_id=user_id,
@@ -28,8 +27,7 @@ def send_new_question(event, vk_api, keyboard, db, quiz):
 
 def hand_up(event, vk_api, keyboard, db):
     user_id = event.user_id
-    question = db.get(user_id)
-    answer = db.get(question)
+    answer = db.get(user_id)
     message = f'''Правильный ответ:
     {answer}'''
 
@@ -43,8 +41,7 @@ def hand_up(event, vk_api, keyboard, db):
 
 def check_solutions_attempt(event, vk_api, keyboard, db):
     user_id = event.user_id
-    question = db.get(user_id)
-    answer = db.get(question)
+    answer = db.get(user_id)
     user_answer = event.text
     if user_answer.lower() == answer.lower:
         vk_api.messages.send(

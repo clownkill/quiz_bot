@@ -36,7 +36,8 @@ def start(update, context):
 def handle_new_question_request(update, context, db, quiz):
     user = update.message.from_user['id']
     question = choice(list(quiz.keys()))
-    db.set(user, question)
+    answer = quiz[question]
+    db.set(user, answer)
 
     update.message.reply_text(
         db.get(user),
@@ -46,11 +47,10 @@ def handle_new_question_request(update, context, db, quiz):
     return BotStates.ANSWER.value
 
 
-def handle_solutions_attempt(update, context, db, quiz):
+def handle_solutions_attempt(update, context, db):
     user = update.message.from_user['id']
     answer = update.message.text
-    question = db.get(user)
-    correct_answer = quiz[question]
+    correct_answer = db.get(user)
 
     if answer.lower() == correct_answer.lower():
         update.message.reply_text(
@@ -68,8 +68,7 @@ def handle_solutions_attempt(update, context, db, quiz):
 
 def handle_give_up(update, context, db, quiz):
     user = update.message.from_user['id']
-    question = db.get(user)
-    answer = quiz[question]
+    answer = db.get(user)
 
     update.message.reply_text(
         f'''Правильный ответ:
