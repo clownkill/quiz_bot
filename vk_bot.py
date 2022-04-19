@@ -25,7 +25,7 @@ def send_new_question(event, vk_api, keyboard, db, quiz):
     )
 
 
-def hand_up(event, vk_api, keyboard, db):
+def hand_up(event, vk_api, keyboard, db, quiz):
     user_id = event.user_id
     answer = db.get(user_id)
     message = f'''Правильный ответ:
@@ -37,6 +37,7 @@ def hand_up(event, vk_api, keyboard, db):
         random_id=get_random_id(),
         keyboard=keyboard.get_keyboard()
     )
+    send_new_question(event, vk_api, keyboard, db, quiz)
 
 
 def check_solutions_attempt(event, vk_api, keyboard, db):
@@ -90,7 +91,7 @@ def main():
             if event.text == 'Новый вопрос':
                 send_new_question(event, vk_api, keyboard, db, quiz)
             elif event.text == 'Сдаться':
-                hand_up(event, vk_api, keyboard, db)
+                hand_up(event, vk_api, keyboard, db, quiz)
             else:
                 check_solutions_attempt(event, vk_api, keyboard, db)
 
