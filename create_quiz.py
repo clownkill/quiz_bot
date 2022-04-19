@@ -3,19 +3,16 @@ from random import choice
 
 from dotenv import load_dotenv
 
-load_dotenv()
-BASE_DIR = os.getenv('BASE_DIR')
 
-
-def get_rnd_quiz_file():
-    file_name = choice(os.listdir(BASE_DIR))
-    file = os.path.join(BASE_DIR, file_name)
+def get_rnd_quiz_file(quiz_dir):
+    file_name = choice(os.listdir(quiz_dir))
+    file = os.path.join(quiz_dir, file_name)
 
     return file
 
 
-def create_quiz():
-    file = get_rnd_quiz_file()
+def create_quiz(quiz_dir):
+    file = get_rnd_quiz_file(quiz_dir)
 
     with open(file, 'r', encoding='KOI8-R') as f:
         text = f.read()
@@ -53,5 +50,8 @@ def create_quiz():
     return quiz
 
 if __name__ == '__main__':
-    quiz = create_quiz()
+    load_dotenv()
+    quiz_dir = os.getenv('QUIZ_DIR')
+
+    quiz = create_quiz(quiz_dir)
     print(quiz)
