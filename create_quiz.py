@@ -54,4 +54,3 @@ if __name__ == '__main__':
     quiz_dir = os.getenv('QUIZ_DIR')
 
     quiz = create_quiz(quiz_dir)
-    print(quiz)
