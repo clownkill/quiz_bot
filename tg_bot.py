@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from enum import Enum
@@ -9,7 +10,6 @@ from dotenv import load_dotenv
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
 
-from create_quiz import create_quiz
 
 
 logging.basicConfig(
@@ -33,11 +33,12 @@ def start(update, context):
     return BotStates.QUESTION.value
 
 
-def handle_new_question_request(update, context, db, quiz):
-    user = update.message.from_user['id']
-    question = choice(list(quiz.keys()))
-    answer = quiz[question]
-    db.set(user, answer)
+def handle_new_question_request(update, context, db):
+    user = f"user_tg_{update.message.from_user['id']}"
+    question_number = choice(db.keys())
+    quiz_set = json.loads(db.get(question_number))
+    question = quiz_set['question']
+    db.set(user, json.dumps({'last_asked_question': question_number}))
     update.message.reply_text(
         question,
         reply_markup=REPLY_MARKUP
@@ -47,9 +48,10 @@ def handle_new_question_request(update, context, db, quiz):
 
 
 def handle_solutions_attempt(update, context, db):
-    user = update.message.from_user['id']
+    user = f"user_tg_{update.message.from_user['id']}"
     answer = update.message.text
-    correct_answer = db.get(user)
+    last_asked_question = json.loads(db.get(user))['last_asked_question']
+    correct_answer = json.loads(db.get(last_asked_question))['answer']
 
     if answer.lower() == correct_answer.lower():
         update.message.reply_text(
@@ -65,18 +67,19 @@ def handle_solutions_attempt(update, context, db):
         return BotStates.ANSWER.value
 
 
-def handle_give_up(update, context, db, quiz):
-    user = update.message.from_user['id']
-    answer = db.get(user)
+def handle_give_up(update, context, db):
+    user = f"user_tg_{update.message.from_user['id']}"
+    last_asked_question = json.loads(db.get(user))['last_asked_question']
+    correct_answer = json.loads(db.get(last_asked_question))['answer']
 
     update.message.reply_text(
         f'''Правильный ответ:
-        {answer}
+        {correct_answer}
         ''',
         reply_markup=REPLY_MARKUP
     )
 
-    handle_new_question_request(update, context, db, quiz)
+    handle_new_question_request(update, context, db)
 
 
 def done(update, context):
@@ -98,7 +101,6 @@ def error(update, error):
 def main():
     load_dotenv()
     tg_quiz_bot_token = os.getenv('TG_QUIZ_BOT_TOKEN')
-    quiz_dir = os.getenv('QUIZ_DIR')
 
     db = redis.Redis(
         host=os.getenv('REDIS_HOST'),
@@ -107,7 +109,6 @@ def main():
         password=os.getenv('REDIS_PASSWORD')
     )
 
-    quiz = create_quiz(quiz_dir)
 
     updater = Updater(tg_quiz_bot_token)
     dp = updater.dispatcher
@@ -116,10 +117,10 @@ def main():
         entry_points=[CommandHandler('start', start)],
         states={
             BotStates.QUESTION.value: [
-                MessageHandler(Filters.regex('^Новый вопрос$'), partial(handle_new_question_request, db=db, quiz=quiz))
+                MessageHandler(Filters.regex('^Новый вопрос$'), partial(handle_new_question_request, db=db))
             ],
             BotStates.ANSWER.value: [
-                MessageHandler(Filters.regex('^Сдаться$'), partial(handle_give_up, db=db, quiz=quiz)),
+                MessageHandler(Filters.regex('^Сдаться$'), partial(handle_give_up, db=db)),
                 MessageHandler(Filters.text, partial(handle_solutions_attempt, db=db)),
             ],
         },

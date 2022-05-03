@@ -1,6 +1,5 @@
 import json
 import os
-from random import choice
 
 import redis
 from dotenv import load_dotenv
