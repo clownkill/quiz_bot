@@ -1,25 +1,19 @@
+import json
 import os
 from random import choice
 
+import redis
 from dotenv import load_dotenv
 
 
-def get_rnd_quiz_file(quiz_dir):
-    file_name = choice(os.listdir(quiz_dir))
-    file = os.path.join(quiz_dir, file_name)
-
-    return file
-
-
-def create_quiz(quiz_dir):
-
+def create_quiz(quiz_dir, db):
     files = os.listdir(quiz_dir)
     quiz = {}
+
     for file_name in files:
         file = os.path.join(quiz_dir, file_name)
         with open(file, 'r', encoding='KOI8-R') as f:
             text = f.read()
-
 
         text_parts = text.split('\n\n')
 
@@ -50,11 +44,31 @@ def create_quiz(quiz_dir):
 
         quiz.update(dict(zip(clear_questions, clear_answers)))
 
-    return quiz
+    counter = 1
+    while counter < len(quiz):
+        for question, answer in quiz.items():
+            if answer and question:
+                quiz_set = {
+                    'question': question,
+                    'answer': answer
+                }
+                db.set(f'question_{counter}', json.dumps(quiz_set))
+                print(f'added quiz_set {counter}')
+            counter += 1
+
+    return len(quiz)
+
 
 if __name__ == '__main__':
     load_dotenv()
     quiz_dir = os.getenv('QUIZ_DIR')
 
-    quiz = create_quiz(quiz_dir)
+    db = redis.Redis(
+        host=os.getenv('REDIS_HOST'),
+        port=(os.getenv('REDIS_PORT')),
+        decode_responses=True,
+        password=os.getenv('REDIS_PASSWORD')
+    )
+
+    quiz = create_quiz(quiz_dir, db)
     print(quiz)
